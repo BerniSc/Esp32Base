@@ -49,6 +49,18 @@ void GPIOManager::deregisterInterrupt(gpio_num_t pin) {
 // ISR Handler. Pass to seperate Queue in Task to prevent blocking ISR  
 // Do this via activation Queue from ISR
 void IRAM_ATTR GPIOManager::isrHandler(void* arg) {
+    static uint32_t lastInterruptTime = 0;                  // Store last interrupttime
+    uint32_t currentTime = xTaskGetTickCountFromISR();      // current time in ticks
+
+    // Debounce threshold in ticks
+    const uint32_t debounceThreshold = pdMS_TO_TICKS(50);
+
+    // Handle overflow naturally with unsigned subtraction; Ignore interrupt if within debounce threshold
+    if((currentTime - lastInterruptTime) < debounceThreshold)
+        return;
+
+    lastInterruptTime = currentTime; // Update last interrupt time and continue with Interrupt
+
     uint32_t pin = (uint32_t) arg;
     xQueueSendFromISR(interruptQueue, &pin, nullptr);
 }
